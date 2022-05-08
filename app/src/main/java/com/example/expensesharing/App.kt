@@ -2,6 +2,9 @@ package com.example.expensesharing
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,15 +20,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.math.RoundingMode
+import com.example.expensesharing.ui.theme.Teal200
 import kotlin.math.min
 import kotlin.math.withSign
 
@@ -56,16 +58,25 @@ class App {
     val totalDue get() = if (personCount > 0) paidAmounts.map { max(0f, individualDue - it) }.sum() else spentMoney
     val totalOwed get() = paidAmounts.map { min(0f, individualDue - it).withSign(1) }.sum()
 
+    constructor(isPreview: Boolean = false) {
+        if (isPreview) {
+            (1..3).forEach {
+                incrementPersonCount()
+            }
+        }
+    }
+
     @OptIn(ExperimentalAnimationApi::class)
     @Composable
     fun MainView() {
         Column(
-            modifier = Modifier.padding(horizontal = 5.dp, vertical = 30.dp),
+            modifier = Modifier
+                .padding(vertical = 30.dp, horizontal = 40.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             PersonCountButtons()
             MoneyAmountTextField()
-            InfoBox()
+            InfoRow()
             LazyColumn {
                 itemsIndexed(persons) { i, person ->
                     PersonCard(i, person)
@@ -77,22 +88,39 @@ class App {
     @Composable
     fun PersonCountButtons() {
         val isDecrementAllowed = persons.any { it.isAnonymous }
-        Row(modifier = Modifier.fillMaxWidth(0.9f)) {
+        Row(modifier = Modifier
+            .height(75.dp)
+            .padding(vertical = 10.dp)
+        ) {
+            Text("${personCount} persons",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .fillMaxWidth(0.5f)
+                    .fillMaxHeight()
+                    .wrapContentHeight()
+            )
             Button(
                 modifier = Modifier
-                    .padding(vertical = 10.dp)
-                    .fillMaxWidth(0.5f),
+                    .fillMaxWidth(0.5f)
+                    .fillMaxHeight(),
                 onClick = { incrementPersonCount() }) {
-                Text(text = "+")
+                Text(text = "+",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
             Spacer(Modifier.width(10.dp))
             Button(modifier =
             Modifier
-                .padding(vertical = 10.dp)
-                .fillMaxWidth(1f),
+                .fillMaxWidth(1f)
+                .fillMaxHeight(),
                 enabled = isDecrementAllowed,
                 onClick = { decrementPersonCount() }) {
-                Text(text = "-")
+                Text(text = "-",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
@@ -102,7 +130,7 @@ class App {
         val fm = LocalFocusManager.current
 
         OutlinedTextField(
-            modifier = Modifier.fillMaxWidth(0.9f),
+            modifier = Modifier.fillMaxWidth(),
             value = spentMoneyText,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Number,
@@ -119,17 +147,43 @@ class App {
     }
 
     @Composable
-    fun InfoBox() {
-        val owedAmountColor = if (totalOwed >= 1) Color.Red else Color.Unspecified
-        Column(modifier = Modifier.padding(vertical = 10.dp)) {
-            Text("Persons: $personCount")
-            Text("Each person pays: ${individualDue.round()}")
-            Spacer(Modifier.height(10.dp))
-            Text("Total Paid: $totalPaid")
-            Text(text = "Total Due: ${totalDue.round()}")
-            Text(text = "Total Owed: ${totalOwed.round()}",
-                color = owedAmountColor
-            )
+    fun InfoRow() {
+        Row(horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+            .padding(vertical = 10.dp)
+            .fillMaxWidth(),
+        ) {
+            InfoCard(cardName = "Individual", numericalValue = individualDue)
+            InfoCard(cardName = "Paid", numericalValue = totalPaid)
+            InfoCard(cardName = "Due", numericalValue = totalDue)
+            InfoCard(cardName = "Owed", numericalValue = totalOwed)
+        }
+    }
+
+    @Composable
+    fun InfoCard(cardName: String, numericalValue: Float) {
+        Card(modifier = Modifier
+            .size(width = 90.dp, height = 60.dp),
+            border = BorderStroke(width = 1.dp, Color.Unspecified),
+            backgroundColor = Color.LightGray
+        ) {
+            Column(Modifier.fillMaxWidth().wrapContentSize()) {
+                Text(
+                    "$cardName",
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentWidth()
+                )
+                Text(
+                    "${numericalValue.round()}",
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentWidth()
+                )
+            }
         }
     }
 
@@ -142,8 +196,8 @@ class App {
         val isOwedAmountShown = owedAmount > 0
         val owedAmountColor = if (totalOwed >= 1) Color.Red else Color.Unspecified
         Card(modifier = Modifier
-            .padding(10.dp)
-            .fillMaxWidth(0.9f)
+            .padding(vertical = 10.dp)
+            .fillMaxWidth()
             .clickable {
                 if (selectedPerson == person) {
                     selectedPerson = null
@@ -151,7 +205,9 @@ class App {
                     selectedPerson = person
                 }
             }, elevation = 5.dp) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally,modifier = Modifier.padding(10.dp)) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(10.dp)
+            ) {
                 Text(text = person.name ?: "Person ${i + 1}",
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold
@@ -175,7 +231,8 @@ class App {
     fun PersonFields(i: Int, person: Person) {
         val fm = LocalFocusManager.current
 
-        Column(modifier = Modifier.fillMaxWidth(0.9f)
+        Column(modifier = Modifier
+            .fillMaxWidth(0.9f)
             .padding(vertical = 13.dp)
         ) {
             TextField(
@@ -237,4 +294,11 @@ class App {
             }
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun DefaultPreview() {
+    val app = App(isPreview = true)
+    app.View()
 }
