@@ -1,6 +1,5 @@
 package com.example.expensesharing
 
-import android.os.Parcelable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.clickable
@@ -13,9 +12,20 @@ import androidx.compose.ui.Modifier
 import com.example.expensesharing.ui.theme.ExpenseSharingTheme
 import kotlin.math.max
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
-import kotlinx.parcelize.Parcelize
-import java.util.*
+import androidx.compose.ui.unit.sp
+import java.math.RoundingMode
 import kotlin.math.min
 import kotlin.math.withSign
 
@@ -65,24 +75,13 @@ class App {
     }
 
     @Composable
-    fun MoneyAmountTextField() {
-        OutlinedTextField(
-            value = spentMoneyText,
-            placeholder = { Text("Money Amount") },
-            onValueChange = {
-                if (it.toFloatOrNull() != null || it.isBlank()) spentMoneyText = it
-            }
-        )
-    }
-
-    @Composable
     fun PersonCountButtons() {
         val isDecrementAllowed = persons.any { it.isAnonymous }
-        Row() {
+        Row(modifier = Modifier.fillMaxWidth(0.9f)) {
             Button(
                 modifier = Modifier
                     .padding(vertical = 10.dp)
-                    .fillMaxWidth(.5f),
+                    .fillMaxWidth(0.5f),
                 onClick = { incrementPersonCount() }) {
                 Text(text = "+")
             }
@@ -90,7 +89,7 @@ class App {
             Button(modifier =
             Modifier
                 .padding(vertical = 10.dp)
-                .fillMaxWidth(.5f),
+                .fillMaxWidth(1f),
                 enabled = isDecrementAllowed,
                 onClick = { decrementPersonCount() }) {
                 Text(text = "-")
@@ -99,14 +98,38 @@ class App {
     }
 
     @Composable
+    fun MoneyAmountTextField() {
+        val fm = LocalFocusManager.current
+
+        OutlinedTextField(
+            modifier = Modifier.fillMaxWidth(0.9f),
+            value = spentMoneyText,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = { fm.clearFocus() }
+            ),
+            placeholder = { Text("Money Amount") },
+            onValueChange = {
+                if (it.toFloatOrNull() != null || it.isBlank()) spentMoneyText = it
+            }
+        )
+    }
+
+    @Composable
     fun InfoBox() {
+        val owedAmountColor = if (totalOwed >= 1) Color.Red else Color.Unspecified
         Column(modifier = Modifier.padding(vertical = 10.dp)) {
             Text("Persons: $personCount")
-            Text("Each person pays: $individualDue")
+            Text("Each person pays: ${individualDue.round()}")
             Spacer(Modifier.height(10.dp))
             Text("Total Paid: $totalPaid")
-            Text(text = "Total Due: $totalDue")
-            Text(text = "Total Owed: $totalOwed")
+            Text(text = "Total Due: ${totalDue.round()}")
+            Text(text = "Total Owed: ${totalOwed.round()}",
+                color = owedAmountColor
+            )
         }
     }
 
@@ -114,8 +137,13 @@ class App {
     @Composable
     fun PersonCard(i: Int, person: Person) {
         val isExpanded = (person == selectedPerson)
+        val dueAmount = max(0f, individualDue - person.paidAmount)
+        val owedAmount = min(0f, individualDue - person.paidAmount).withSign(1)
+        val isOwedAmountShown = owedAmount > 0
+        val owedAmountColor = if (totalOwed >= 1) Color.Red else Color.Unspecified
         Card(modifier = Modifier
             .padding(10.dp)
+            .fillMaxWidth(0.9f)
             .clickable {
                 if (selectedPerson == person) {
                     selectedPerson = null
@@ -124,27 +152,43 @@ class App {
                 }
             }, elevation = 5.dp) {
             Column(horizontalAlignment = Alignment.CenterHorizontally,modifier = Modifier.padding(10.dp)) {
-                Text(text = person.name ?: "Person ${i + 1}")
+                Text(text = person.name ?: "Person ${i + 1}",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                val shownAmountText = if (isOwedAmountShown) "Owed ${owedAmount.round()}" else "${dueAmount.round()}"
+                val shownAmountColor = if (isOwedAmountShown) owedAmountColor else Color.Unspecified
+                Text(shownAmountText,
+                    color = shownAmountColor,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Light
+                )
                 AnimatedVisibility(isExpanded) {
-                    PersonTextFields(i, person)
-                }
-                Text("Due Amount: ${max(0f, individualDue - person.paidAmount)}")
-                Text("Owed Amount: ${min(0f, individualDue - person.paidAmount).withSign(1)}")
-                AnimatedVisibility(isExpanded) {
-                    Button({ persons.remove(person) }) {
-                        Text("Remove")
-                    }
+                    PersonFields(i, person)
                 }
             }
         }
     }
 
+    @OptIn(ExperimentalComposeUiApi::class)
     @Composable
-    fun PersonTextFields(i: Int, person: Person) {
-        Column {
+    fun PersonFields(i: Int, person: Person) {
+        val fm = LocalFocusManager.current
+
+        Column(modifier = Modifier.fillMaxWidth(0.9f)
+            .padding(vertical = 13.dp)
+        ) {
             TextField(
                 value = person.name ?: "",
                 placeholder = { Text("Name") },
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = { fm.clearFocus() }
+                ),
                 onValueChange = {
                     val newName = it.replace('\n', ' ')
                     if (newName.isNotBlank()) {
@@ -158,6 +202,14 @@ class App {
             TextField(
                 value = person.paidAmountString,
                 placeholder = { Text("Paid Amount") },
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = { fm.clearFocus() }
+                ),
                 onValueChange = {
                     if (it.toFloatOrNull() != null || it.isBlank()) {
                         person.paidAmountString = it
@@ -166,6 +218,9 @@ class App {
                     persons.set(i, person)
                 }
             )
+            Button({ persons.remove(person) }, Modifier.fillMaxWidth()) {
+                Text("Remove")
+            }
         }
     }
 
