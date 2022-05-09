@@ -25,6 +25,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.expensesharing.ui.theme.Teal200
@@ -75,9 +76,11 @@ class App {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             PersonCountButtons()
-            MoneyAmountTextField()
-            InfoRow()
             LazyColumn {
+                items(1) {
+                    MoneyAmountTextField()
+                    InfoRow()
+                }
                 itemsIndexed(persons) { i, person ->
                     PersonCard(i, person)
                 }
@@ -163,25 +166,22 @@ class App {
     @Composable
     fun InfoCard(cardName: String, numericalValue: Float) {
         Card(modifier = Modifier
-            .size(width = 90.dp, height = 60.dp),
+            .width(IntrinsicSize.Min)
+            .widthIn(min = 75.dp, max = Dp.Infinity),
             border = BorderStroke(width = 1.dp, Color.Unspecified),
             backgroundColor = Color.LightGray
         ) {
-            Column(Modifier.fillMaxWidth().wrapContentSize()) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(all = 4.dp)
+            ) {
                 Text(
                     "$cardName",
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .wrapContentWidth()
                 )
                 Text(
                     "${numericalValue.round()}",
                     textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .wrapContentWidth()
                 )
             }
         }
